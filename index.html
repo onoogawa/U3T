@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>U3T</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Ultimate Tic-Tac-Toe</h1>
+    <p id="status">準備中...</p>
+    
+    <div id="game-layout">
+        <div id="game-main">
+            <div id="board"></div>
+            <button id="reset-button">新しい対局</button>
+        </div>
+
+        <div id="move-history">
+            <h2>棋譜</h2>
+            <button id="return-to-game-button" hidden>
+                対局に戻る
+            </button>
+
+            <div id="replay-controls">
+                <button id="previous-move-button" disabled>
+                    ← 1手戻る
+                </button>
+                <button id="next-move-button" disabled>
+                    1手進む →
+                </button>
+            </div>
+            
+            <ol id="move-list"></ol>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
