@@ -373,3 +373,19 @@ body {
         max-height: 75vh;
     }
 }
+
+.cell {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    color: #222;
+}
+
+.cell:focus:not(:focus-visible) {
+    outline: none;
+}
+
+.cell:focus-visible {
+    outline: 2px solid #4caf50;
+    outline-offset: -2px;
+}
