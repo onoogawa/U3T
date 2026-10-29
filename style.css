@@ -389,3 +389,10 @@ body {
     outline: 2px solid #4caf50;
     outline-offset: -2px;
 }
+
+.cell {
+    color: #222 !important;
+    -webkit-text-fill-color: #222;
+    -webkit-appearance: none;
+    appearance: none;
+}
