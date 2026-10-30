@@ -88,6 +88,7 @@ let gameSaved = false;
 let gameSaveInProgress = false;
 let savedGamesLoadId = 0;
 let activeOnlineRoom = null;
+let activeRoomChannel = null;
 
 function createBoard() {
     boardElement.innerHTML = "";
@@ -586,6 +587,13 @@ async function loginUser() {
 }
 
 async function logoutUser() {
+    if (activeRoomChannel) {
+        await supabaseClient.removeChannel(activeRoomChannel);
+        activeRoomChannel = null;
+    }
+
+    activeOnlineRoom = null;
+
     const { error } = await supabaseClient.auth.signOut();
 
     if (error) {
@@ -740,6 +748,75 @@ function displayOnlineRoom(room) {
         statusText;
 }
 
+async function subscribeToOnlineRoom(room) {
+
+    if (activeRoomChannel) {
+        await supabaseClient.removeChannel(activeRoomChannel);
+        activeRoomChannel = null;
+    }
+
+    const roomId = room.id;
+
+    const channel = supabaseClient
+        .channel(`room-updates-${roomId}`)
+        .on(
+            "postgres_changes",
+            {
+                event: "UPDATE",
+                schema: "public",
+                table: "rooms",
+                filter: `id=eq.${roomId}`
+            },
+            (payload) => {
+                const updatedRoom = payload.new;
+
+                if (
+                    !activeOnlineRoom ||
+                    updatedRoom.id !== activeOnlineRoom.id
+                ) {
+                    return;
+                }
+
+                console.log("ルーム更新を受信:", updatedRoom);
+
+                displayOnlineRoom(updatedRoom);
+
+                if (updatedRoom.status === "playing") {
+                    setRoomMessage(
+                        "相手が参加しました！対局を開始できます。"
+                    );
+                } else if (updatedRoom.status === "waiting") {
+                    setRoomMessage(
+                        "相手の参加を待っています。"
+                    );
+                }
+            }
+        )
+        .subscribe((status, error) => {
+
+            console.log("Realtime status:", status);
+
+            if (status === "SUBSCRIBED") {
+                setRoomMessage(
+                    "ルームの自動更新が有効になりました。"
+                );
+            }
+
+            if (
+                status === "CHANNEL_ERROR" ||
+                status === "TIMED_OUT"
+            ) {
+                console.error("Realtime error:", error);
+
+                setRoomMessage(
+                    "リアルタイム接続に失敗しました。手動更新を利用してください。"
+                );
+            }
+        });
+
+    activeRoomChannel = channel;
+}
+
 async function createOnlineRoom() {
     setRoomMessage("ルームを作成しています...");
 
@@ -762,7 +839,7 @@ async function createOnlineRoom() {
 
     displayOnlineRoom(data);
 
-    setRoomMessage("ルームを作成しました。相手にコードを共有してください。");
+    await subscribeToOnlineRoom(data);
 }
 
 async function joinOnlineRoom() {
@@ -804,7 +881,7 @@ async function joinOnlineRoom() {
 
     displayOnlineRoom(data);
 
-    setRoomMessage("ルームに参加しました。");
+    await subscribeToOnlineRoom(data);
 }
 
 async function refreshOnlineRoom() {
