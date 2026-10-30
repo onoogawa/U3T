@@ -1039,30 +1039,68 @@ async function subscribeToOnlineRoom(room) {
 }
 
 async function createOnlineRoom() {
-    setRoomMessage("ルームを作成しています...");
+    const button =
+        document.getElementById("create-room-button");
 
-    const { data: userData, error: authError } =
-        await supabaseClient.auth.getUser();
+    if (button.disabled) return;
 
-    currentOnlineUserId = userData.user.id;
+    button.disabled = true;
 
-    if (authError || !userData.user) {
-        setRoomMessage("ルームを作成するにはログインしてください。");
-        return;
+    try {
+        // まずログイン状態を確認
+        setRoomMessage("ログイン状態を確認しています...");
+
+        const { data, error: sessionError } =
+            await supabaseClient.auth.getSession();
+
+        if (sessionError) {
+            throw sessionError;
+        }
+
+        const session = data.session;
+
+        // 未ログインなら終了
+        if (!session || !session.user) {
+            setRoomMessage(
+                "ルームを作成するにはログインしてください。"
+            );
+            return;
+        }
+
+        currentOnlineUserId = session.user.id;
+
+        // ここからルーム作成
+        setRoomMessage("ルームを作成しています...");
+
+        const { data: room, error } =
+            await supabaseClient.rpc("create_room");
+
+        if (error) {
+            throw error;
+        }
+
+        if (!room || !room.id) {
+            throw new Error("ルーム情報を取得できませんでした。");
+        }
+
+        displayOnlineRoom(room);
+
+        await subscribeToOnlineRoom(room);
+
+        setRoomMessage(
+            "ルームを作成しました。相手にコードを共有してください。"
+        );
+
+    } catch (error) {
+        console.error("Room creation error:", error);
+
+        setRoomMessage(
+            "ルーム作成エラー：" + error.message
+        );
+
+    } finally {
+        button.disabled = false;
     }
-
-    const { data, error } =
-        await supabaseClient.rpc("create_room");
-
-    if (error) {
-        console.error(error);
-        setRoomMessage("ルーム作成エラー：" + error.message);
-        return;
-    }
-
-    displayOnlineRoom(data);
-
-    await subscribeToOnlineRoom(data);
 }
 
 async function joinOnlineRoom() {
