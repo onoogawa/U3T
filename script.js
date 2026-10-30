@@ -87,6 +87,7 @@ let replayIndex = null;
 let gameSaved = false;
 let gameSaveInProgress = false;
 let savedGamesLoadId = 0;
+let activeOnlineRoom = null;
 
 function createBoard() {
     boardElement.innerHTML = "";
@@ -710,3 +711,146 @@ function loadSavedGame(game) {
 }
 
 loadSavedGames();
+
+function setRoomMessage(message) {
+    document.getElementById("room-message").textContent = message;
+}
+
+function displayOnlineRoom(room) {
+    activeOnlineRoom = room;
+
+    const panel =
+        document.getElementById("active-room-panel");
+
+    panel.hidden = false;
+
+    document.getElementById("active-room-code").textContent =
+        room.room_code;
+
+    const statusText =
+        room.status === "waiting"
+            ? "相手の参加を待っています。"
+            : room.status === "playing"
+                ? "対戦相手が参加しました。"
+                : room.status === "finished"
+                    ? "対局終了"
+                    : "ルーム状態：" + room.status;
+
+    document.getElementById("room-status-display").textContent =
+        statusText;
+}
+
+async function createOnlineRoom() {
+    setRoomMessage("ルームを作成しています...");
+
+    const { data: userData, error: authError } =
+        await supabaseClient.auth.getUser();
+
+    if (authError || !userData.user) {
+        setRoomMessage("ルームを作成するにはログインしてください。");
+        return;
+    }
+
+    const { data, error } =
+        await supabaseClient.rpc("create_room");
+
+    if (error) {
+        console.error(error);
+        setRoomMessage("ルーム作成エラー：" + error.message);
+        return;
+    }
+
+    displayOnlineRoom(data);
+
+    setRoomMessage("ルームを作成しました。相手にコードを共有してください。");
+}
+
+async function joinOnlineRoom() {
+    const input =
+        document.getElementById("room-code-input");
+
+    const roomCode = input.value.trim().toUpperCase();
+
+    if (!roomCode) {
+        setRoomMessage("参加コードを入力してください。");
+        return;
+    }
+
+    if (!/^[A-F0-9]{8}$/.test(roomCode)) {
+        setRoomMessage("8桁の英数字コードを入力してください。");
+        return;
+    }
+
+    const { data: userData, error: authError } =
+        await supabaseClient.auth.getUser();
+
+    if (authError || !userData.user) {
+        setRoomMessage("参加するにはログインしてください。");
+        return;
+    }
+
+    setRoomMessage("ルームに参加しています...");
+
+    const { data, error } =
+        await supabaseClient.rpc("join_room", {
+            p_room_code: roomCode
+        });
+
+    if (error) {
+        console.error(error);
+        setRoomMessage("参加エラー：" + error.message);
+        return;
+    }
+
+    displayOnlineRoom(data);
+
+    setRoomMessage("ルームに参加しました。");
+}
+
+async function refreshOnlineRoom() {
+    if (!activeOnlineRoom) return;
+
+    const { data, error } = await supabaseClient
+        .from("rooms")
+        .select("*")
+        .eq("id", activeOnlineRoom.id)
+        .single();
+
+    if (error) {
+        console.error(error);
+        setRoomMessage("ルーム情報の取得に失敗しました。");
+        return;
+    }
+
+    displayOnlineRoom(data);
+
+    setRoomMessage("ルーム情報を更新しました。");
+}
+
+async function copyRoomCode() {
+    if (!activeOnlineRoom) return;
+
+    try {
+        await navigator.clipboard.writeText(
+            activeOnlineRoom.room_code
+        );
+
+        setRoomMessage("参加コードをコピーしました。");
+    } catch (error) {
+        setRoomMessage(
+            "コピーできませんでした。コードを手動でコピーしてください。"
+        );
+    }
+}
+
+document.getElementById("create-room-button")
+    .addEventListener("click", createOnlineRoom);
+
+document.getElementById("join-room-button")
+    .addEventListener("click", joinOnlineRoom);
+
+document.getElementById("refresh-room-button")
+    .addEventListener("click", refreshOnlineRoom);
+
+document.getElementById("copy-room-code-button")
+    .addEventListener("click", copyRoomCode);

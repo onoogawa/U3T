@@ -609,3 +609,94 @@ body {
         max-height: 70vh;
     }
 }
+
+/* オンライン対戦パネル */
+#online-room-panel {
+    width: min(96vw, 720px);
+    margin: 20px auto;
+    padding: 18px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#online-room-panel h2 {
+    margin-top: 0;
+    font-size: 20px;
+}
+
+#room-create-area {
+    margin-bottom: 12px;
+}
+
+#room-join-area {
+    display: flex;
+    gap: 8px;
+}
+
+#room-code-input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+    text-transform: uppercase;
+}
+
+#online-room-panel button {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 6px;
+    background: #333;
+    color: white;
+    cursor: pointer;
+}
+
+#online-room-panel button:hover {
+    background: #555;
+}
+
+#room-message,
+#room-status-display {
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+#active-room-panel {
+    margin-top: 16px;
+    padding: 14px;
+    background: #f1f5f9;
+    border-radius: 8px;
+}
+
+.room-code-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#active-room-code {
+    font-size: 25px;
+    letter-spacing: 3px;
+}
+
+@media (max-width: 600px) {
+    #online-room-panel {
+        width: 96vw;
+        padding: 14px;
+    }
+
+    #room-join-area {
+        flex-wrap: wrap;
+    }
+
+    #room-code-input {
+        flex-basis: 100%;
+    }
+
+    #room-join-area button {
+        width: 100%;
+    }
+}

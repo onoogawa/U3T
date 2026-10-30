@@ -61,6 +61,49 @@
 
     <p id="status">準備中...</p>
     
+    <section id="online-room-panel">
+        <h2>オンライン対戦</h2>
+
+        <div id="room-create-area">
+            <button id="create-room-button">
+                対局ルームを作成
+            </button>
+        </div>
+
+        <div id="room-join-area">
+            <input
+                type="text"
+                id="room-code-input"
+                placeholder="8桁の参加コード"
+                maxlength="8"
+                autocomplete="off"
+            >
+
+            <button id="join-room-button">
+                ルームに参加
+            </button>
+        </div>
+
+        <p id="room-message">
+            オンライン対戦にはログインが必要です。
+        </p>
+
+        <div id="active-room-panel" hidden>
+            <p>ルームコード</p>
+
+            <div class="room-code-row">
+                <strong id="active-room-code"></strong>
+                <button id="copy-room-code-button">コピー</button>
+            </div>
+
+            <p id="room-status-display"></p>
+
+            <button id="refresh-room-button">
+                ルーム状態を更新
+            </button>
+        </div>
+    </section>
+
     <div id="game-layout">
         <div id="game-main">
             <div id="board"></div>
