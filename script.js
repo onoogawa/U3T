@@ -1142,6 +1142,8 @@ async function restoreOnlineRoom() {
 
         if (authError || !userData.user) return;
 
+        currentOnlineUserId = userData.user.id;
+
         const { data: room, error } = await supabaseClient
             .from("rooms")
             .select("*")
