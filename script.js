@@ -48,6 +48,7 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
     ) {
         window.setTimeout(() => {
             loadSavedGames();
+            restoreOnlineRoom();
         }, 0);
     }
 });
@@ -93,6 +94,7 @@ let savedGamesLoadId = 0;
 let activeOnlineRoom = null;
 let activeRoomChannel = null;
 let currentOnlineUserId = null;
+let roomRestoreInProgress = false;
 
 function createBoard() {
     boardElement.innerHTML = "";
@@ -608,6 +610,13 @@ async function loginUser() {
 }
 
 async function logoutUser() {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+        setAuthMessage("ログアウトエラー：" + error.message);
+        return;
+    }
+
     if (activeRoomChannel) {
         await supabaseClient.removeChannel(activeRoomChannel);
         activeRoomChannel = null;
@@ -615,12 +624,7 @@ async function logoutUser() {
 
     activeOnlineRoom = null;
 
-    const { error } = await supabaseClient.auth.signOut();
-
-    if (error) {
-        setAuthMessage("ログアウトエラー：" + error.message);
-        return;
-    }
+    localStorage.removeItem("activeOnlineRoomId");
 
     setAuthMessage("ログアウトしました。");
 }
@@ -747,6 +751,17 @@ function setRoomMessage(message) {
 
 function displayOnlineRoom(room) {
     activeOnlineRoom = room;
+    if (
+        room.status === "waiting" ||
+        room.status === "playing"
+    ) {
+        localStorage.setItem(
+            "activeOnlineRoomId",
+            room.id
+        );
+    } else {
+        localStorage.removeItem("activeOnlineRoomId");
+    }
 
     const panel =
         document.getElementById("active-room-panel");
@@ -1110,6 +1125,78 @@ async function refreshOnlineRoom() {
     }
 
     setRoomMessage("ルーム情報を更新しました。");
+}
+
+async function restoreOnlineRoom() {
+    if (roomRestoreInProgress) return;
+
+    roomRestoreInProgress = true;
+
+    try {
+        const roomId = localStorage.getItem("activeOnlineRoomId");
+
+        if (!roomId) return;
+
+        const { data: userData, error: authError } =
+            await supabaseClient.auth.getUser();
+
+        if (authError || !userData.user) return;
+
+        const { data: room, error } = await supabaseClient
+            .from("rooms")
+            .select("*")
+            .eq("id", roomId)
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+
+        if (!room) {
+            localStorage.removeItem("activeOnlineRoomId");
+            setRoomMessage("保存されたルームが見つかりません。");
+            return;
+        }
+
+        // 自分が参加者であることを確認
+        if (
+            room.host_id !== userData.user.id &&
+            room.guest_id !== userData.user.id
+        ) {
+            localStorage.removeItem("activeOnlineRoomId");
+            setRoomMessage("このルームにはアクセスできません。");
+            return;
+        }
+
+        displayOnlineRoom(room);
+
+        if (
+            room.status === "playing" ||
+            room.status === "finished"
+        ) {
+            applyOnlineRoomState(room);
+        }
+
+        await subscribeToOnlineRoom(room);
+
+        setRoomMessage(
+            room.status === "waiting"
+                ? "待機中のルームに再接続しました。"
+                : room.status === "playing"
+                    ? "対局に再接続しました。"
+                    : "終了した対局を復元しました。"
+        );
+
+    } catch (error) {
+        console.error("Room restore error:", error);
+
+        setRoomMessage(
+            "ルームの復元に失敗しました：" + error.message
+        );
+
+    } finally {
+        roomRestoreInProgress = false;
+    }
 }
 
 async function copyRoomCode() {
