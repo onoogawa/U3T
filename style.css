@@ -264,15 +264,15 @@ body {
 }
 
 #status.status-o {
-    color: #1757a6;
-    background: #e8f2ff;
-    border-color: #8bbaff;
-}
-
-#status.status-x {
     color: #b42332;
     background: #fff0f0;
     border-color: #f1a0a6;
+}
+
+#status.status-x {
+    color: #1757a6;
+    background: #e8f2ff;
+    border-color: #8bbaff;
 }
 
 #status.status-finished {
@@ -395,4 +395,70 @@ body {
     -webkit-text-fill-color: #222;
     -webkit-appearance: none;
     appearance: none;
+}
+
+
+#auth-panel {
+    width: min(90vw, 420px);
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    text-align: left;
+}
+
+#auth-panel h2 {
+    margin-top: 0;
+    text-align: center;
+}
+
+#auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#auth-form input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+#auth-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+#auth-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: #333;
+    color: white;
+    cursor: pointer;
+}
+
+#auth-user-panel {
+    text-align: center;
+}
+
+#logout-button {
+    padding: 9px 20px;
+    border: none;
+    border-radius: 6px;
+    background: #555;
+    color: white;
+    cursor: pointer;
+}
+
+#auth-message {
+    min-height: 24px;
+    margin-bottom: 0;
+    font-size: 14px;
+    text-align: center;
+    overflow-wrap: anywhere;
 }

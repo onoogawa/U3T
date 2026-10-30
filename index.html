@@ -9,6 +9,38 @@
 <body>
     <h1>Ultimate Tic-Tac-Toe</h1>
     <p id="status">準備中...</p>
+
+    <div id="auth-panel">
+        <h2>アカウント</h2>
+
+        <div id="auth-form">
+            <input
+                type="email"
+                id="auth-email"
+                placeholder="メールアドレス"
+                autocomplete="email"
+            >
+
+            <input
+                type="password"
+                id="auth-password"
+                placeholder="パスワード（6文字以上）"
+                autocomplete="current-password"
+            >
+
+            <div id="auth-buttons">
+                <button id="signup-button">新規登録</button>
+                <button id="login-button">ログイン</button>
+            </div>
+        </div>
+
+        <div id="auth-user-panel" hidden>
+            <p id="auth-user-info"></p>
+            <button id="logout-button">ログアウト</button>
+        </div>
+
+        <p id="auth-message" role="status" aria-live="polite"></p>
+    </div>
     
     <div id="game-layout">
         <div id="game-main">
@@ -35,6 +67,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>
 </html>

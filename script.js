@@ -1,6 +1,45 @@
 const boardElement = document.getElementById("board");
 const statusElement = document.getElementById("status");
 
+// Supabase接続情報
+const SUPABASE_URL = "https://muxbidgynhfqravewhsv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SdvlZPT451wbewu5J9zs8w_Aze-AkJ5";
+
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+);
+
+const authForm = document.getElementById("auth-form");
+const authUserPanel = document.getElementById("auth-user-panel");
+const authUserInfo = document.getElementById("auth-user-info");
+const authMessage = document.getElementById("auth-message");
+
+function setAuthMessage(message) {
+    authMessage.textContent = message;
+}
+
+function updateAuthUI(session) {
+    if (session && session.user) {
+        authForm.hidden = true;
+        authUserPanel.hidden = false;
+
+        authUserInfo.textContent =
+            `ログイン中：${session.user.email}`;
+    } else {
+        authForm.hidden = false;
+        authUserPanel.hidden = true;
+    }
+}
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    updateAuthUI(session);
+
+    if (event === "SIGNED_OUT") {
+        setAuthMessage("ログアウトしました。");
+    }
+});
+
 function setStatus(text, state = "normal") {
     statusElement.textContent = text;
     statusElement.className = `status-${state}`;
@@ -401,3 +440,83 @@ document.getElementById("reset-button").addEventListener("click", resetGame);
 document.getElementById("previous-move-button").addEventListener("click", showPreviousMove);
 document.getElementById("next-move-button").addEventListener("click", showNextMove);
 document.getElementById("return-to-game-button").addEventListener("click", returnToGame);
+
+// 新規登録
+async function signUpUser() {
+    const email = document.getElementById("auth-email").value.trim();
+    const password = document.getElementById("auth-password").value;
+
+    if (!email || !password) {
+        setAuthMessage("メールアドレスとパスワードを入力してください。");
+        return;
+    }
+
+    if (password.length < 6) {
+        setAuthMessage("パスワードは6文字以上にしてください。");
+        return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+            emailRedirectTo:
+                window.location.origin + window.location.pathname
+        }
+    });
+
+    if (error) {
+        setAuthMessage("登録エラー：" + error.message);
+        return;
+    }
+
+    if (data.session) {
+        setAuthMessage("登録・ログインが完了しました。");
+    } else {
+        setAuthMessage(
+            "確認メールを送信しました。メール内のリンクを開いてください。"
+        );
+    }
+}
+
+async function loginUser() {
+    const email = document.getElementById("auth-email").value.trim();
+    const password = document.getElementById("auth-password").value;
+
+    if (!email || !password) {
+        setAuthMessage("メールアドレスとパスワードを入力してください。");
+        return;
+    }
+
+    const { error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
+
+    if (error) {
+        setAuthMessage("ログインエラー：" + error.message);
+        return;
+    }
+
+    setAuthMessage("ログインしました。");
+}
+
+async function logoutUser() {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+        setAuthMessage("ログアウトエラー：" + error.message);
+        return;
+    }
+
+    setAuthMessage("ログアウトしました。");
+}
+
+document.getElementById("signup-button")
+    .addEventListener("click", signUpUser);
+
+document.getElementById("login-button")
+    .addEventListener("click", loginUser);
+
+document.getElementById("logout-button")
+    .addEventListener("click", logoutUser);
