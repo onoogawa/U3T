@@ -89,6 +89,7 @@ let gameSaveInProgress = false;
 let savedGamesLoadId = 0;
 let activeOnlineRoom = null;
 let activeRoomChannel = null;
+let currentOnlineUserId = null;
 
 function createBoard() {
     boardElement.innerHTML = "";
@@ -119,6 +120,16 @@ function createBoard() {
 function handleClick(boardIndex, cellIndex, cell) {
     if (isReplayMode) return;
     if (gameOver) return;
+
+    if (activeOnlineRoom) {
+        if (activeOnlineRoom.status !== "playing") {
+            setRoomMessage("相手の参加を待っています。");
+            return;
+        }
+
+        submitOnlineMove(boardIndex, cellIndex);
+        return;
+    }
 
     if (nextBoard !== null && boardIndex !== nextBoard) {
         return;
@@ -315,6 +326,13 @@ function updateBoardStyles() {
 }
 
 function resetGame() {
+    if (activeOnlineRoom) {
+        setRoomMessage(
+            "オンラインルーム利用中はリセットできません。"
+        );
+        return;
+    }
+    
     for (let i = 0; i < 9; i++) {
         boards[i].fill("");
         boardWinners[i] = "";
@@ -748,6 +766,143 @@ function displayOnlineRoom(room) {
         statusText;
 }
 
+function applyOnlineRoomState(room) {
+    if (!room || !room.state) return;
+
+    if (
+        room.status !== "playing" &&
+        room.status !== "finished"
+    ) {
+        return;
+    }
+
+    const state = room.state;
+
+    if (
+        !Array.isArray(state.boards) ||
+        state.boards.length !== 9 ||
+        !Array.isArray(state.boardWinners) ||
+        state.boardWinners.length !== 9
+    ) {
+        console.error("不正なオンライン盤面データ", room);
+        return;
+    }
+
+    for (let i = 0; i < 9; i++) {
+        if (
+            !Array.isArray(state.boards[i]) ||
+            state.boards[i].length !== 9
+        ) {
+            console.error("小盤面のデータが不正です。");
+            return;
+        }
+
+        boards[i].splice(
+            0,
+            boards[i].length,
+            ...state.boards[i]
+        );
+
+        boardWinners[i] = state.boardWinners[i];
+    }
+
+    currentPlayer = state.currentPlayer;
+
+    nextBoard =
+        state.nextBoard === null
+            ? null
+            : Number(state.nextBoard);
+
+    gameOver = Boolean(state.gameOver);
+
+    moveHistory.splice(
+        0,
+        moveHistory.length,
+        ...(Array.isArray(room.moves) ? room.moves : [])
+    );
+
+    replayMoves = moveHistory;
+
+    isReplayMode = false;
+    replayIndex = null;
+
+    document.getElementById("return-to-game-button").hidden = true;
+
+    displayPosition(boards, {
+        boardWinners: boardWinners,
+        nextBoard: nextBoard
+    });
+
+    updateBoardStyles();
+    renderMoveHistory();
+    updateReplayControls();
+
+    if (gameOver) {
+        setStatus(
+            room.winner === "draw"
+                ? "引き分け！"
+                : `${room.winner}の勝利！`,
+            "finished"
+        );
+    } else {
+        const myMark =
+            room.host_id === currentOnlineUserId ? "O" : "X";
+
+        const turnText =
+            currentPlayer === myMark
+                ? "あなたの手番"
+                : "相手の手番";
+
+        const targetText =
+            nextBoard === null
+                ? "好きな小盤面"
+                : `${nextBoard + 1}番の小盤面`;
+
+        setStatus(
+            `オンライン対戦：${turnText}（あなたは${myMark}）。次は${targetText}`,
+            currentPlayer === "O" ? "o" : "x"
+        );
+    }
+}
+
+async function submitOnlineMove(boardIndex, cellIndex) {
+    if (!activeOnlineRoom) return;
+
+    if (activeOnlineRoom.status !== "playing") {
+        setRoomMessage("現在対局中ではありません。");
+        return;
+    }
+
+    setRoomMessage("着手を送信しています...");
+
+    const { data, error } = await supabaseClient.rpc(
+        "make_room_move",
+        {
+            p_room_id: activeOnlineRoom.id,
+            p_board_index: boardIndex,
+            p_cell_index: cellIndex
+        }
+    );
+
+    if (error) {
+        console.error("Online move error:", error);
+
+        setRoomMessage(
+            "着手できませんでした：" + error.message
+        );
+        return;
+    }
+
+    displayOnlineRoom(data);
+    applyOnlineRoomState(data);
+
+    setRoomMessage(
+        data.status === "finished"
+            ? "対局が終了しました。"
+            : "着手が反映されました。"
+    );
+}
+
 async function subscribeToOnlineRoom(room) {
 
     if (activeRoomChannel) {
@@ -780,6 +935,13 @@ async function subscribeToOnlineRoom(room) {
                 console.log("ルーム更新を受信:", updatedRoom);
 
                 displayOnlineRoom(updatedRoom);
+
+                if (
+                    updatedRoom.status === "playing" ||
+                    updatedRoom.status === "finished"
+                ) {
+                    applyOnlineRoomState(updatedRoom);
+                }
 
                 if (updatedRoom.status === "playing") {
                     setRoomMessage(
@@ -823,6 +985,8 @@ async function createOnlineRoom() {
     const { data: userData, error: authError } =
         await supabaseClient.auth.getUser();
 
+    currentOnlineUserId = userData.user.id;
+
     if (authError || !userData.user) {
         setRoomMessage("ルームを作成するにはログインしてください。");
         return;
@@ -861,6 +1025,8 @@ async function joinOnlineRoom() {
     const { data: userData, error: authError } =
         await supabaseClient.auth.getUser();
 
+    currentOnlineUserId = userData.user.id;
+
     if (authError || !userData.user) {
         setRoomMessage("参加するにはログインしてください。");
         return;
@@ -881,6 +1047,13 @@ async function joinOnlineRoom() {
 
     displayOnlineRoom(data);
 
+    if (
+        data.status === "playing" ||
+        data.status === "finished"
+    ) {
+        applyOnlineRoomState(data);
+    }
+
     await subscribeToOnlineRoom(data);
 }
 
@@ -900,6 +1073,13 @@ async function refreshOnlineRoom() {
     }
 
     displayOnlineRoom(data);
+
+    if (
+        data.status === "playing" ||
+        data.status === "finished"
+    ) {
+        applyOnlineRoomState(data);
+    }
 
     setRoomMessage("ルーム情報を更新しました。");
 }
