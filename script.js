@@ -96,6 +96,7 @@ let activeOnlineRoom = null;
 let activeRoomChannel = null;
 let currentOnlineUserId = null;
 let roomRestoreInProgress = false;
+let rematchSwitchingRoomId = null;
 
 function createBoard() {
     boardElement.innerHTML = "";
@@ -754,6 +755,13 @@ function displayOnlineRoom(room) {
 
     if (room.status === "cancelled") {
         activeOnlineRoom = null;
+        const rematchButton =
+            document.getElementById("rematch-room-button");
+
+        if (rematchButton) {
+            rematchButton.hidden = true;
+            rematchButton.disabled = false;
+        }
 
         localStorage.removeItem("activeOnlineRoomId");
 
@@ -802,6 +810,22 @@ function displayOnlineRoom(room) {
 
     document.getElementById("room-status-display").textContent =
         statusText;
+
+    const rematchButton =
+    document.getElementById("rematch-room-button");
+
+    if (rematchButton) {
+        const alreadyRequested =
+            Array.isArray(room.rematch_requested_by) &&
+            room.rematch_requested_by.includes(currentOnlineUserId);
+
+        rematchButton.hidden = room.status !== "finished";
+        rematchButton.disabled = alreadyRequested;
+
+        rematchButton.textContent = alreadyRequested
+            ? "再戦希望済み"
+            : "再戦する";
+    }
 }
 
 function applyOnlineRoomState(room) {
@@ -981,6 +1005,21 @@ async function subscribeToOnlineRoom(room) {
             },
             (payload) => {
                 const updatedRoom = payload.new;
+                if (
+                    activeOnlineRoom &&
+                    updatedRoom.id === activeOnlineRoom.id &&
+                    updatedRoom.rematch_room_id
+                ) {
+                    setRoomMessage(
+                    "相手も再戦を希望しました。新しい対局へ移動します..."
+                    );
+
+                    await switchToRematchRoom(
+                    updatedRoom.rematch_room_id
+                    );
+
+                    return;
+                }
 
                 if (
                     !activeOnlineRoom ||
@@ -1074,7 +1113,6 @@ async function createOnlineRoom() {
     button.disabled = true;
 
     try {
-        // まずログイン状態を確認
         setRoomMessage("ログイン状態を確認しています...");
 
         const { data, error: sessionError } =
@@ -1086,7 +1124,6 @@ async function createOnlineRoom() {
 
         const session = data.session;
 
-        // 未ログインなら終了
         if (!session || !session.user) {
             setRoomMessage(
                 "ルームを作成するにはログインしてください。"
@@ -1096,7 +1133,6 @@ async function createOnlineRoom() {
 
         currentOnlineUserId = session.user.id;
 
-        // ここからルーム作成
         setRoomMessage("ルームを作成しています...");
 
         const { data: room, error } =
@@ -1245,7 +1281,6 @@ async function restoreOnlineRoom() {
             return;
         }
 
-        // 自分が参加者であることを確認
         if (
             room.host_id !== userData.user.id &&
             room.guest_id !== userData.user.id
@@ -1414,6 +1449,108 @@ async function saveFinishedOnlineRoom(roomId) {
     }
 }
 
+async function switchToRematchRoom(roomId) {
+    if (!roomId) return;
+
+    if (
+        activeOnlineRoom?.id === roomId ||
+        rematchSwitchingRoomId === roomId
+    ) {
+        return;
+    }
+
+    if (rematchSwitchingRoomId !== null) return;
+
+    rematchSwitchingRoomId = roomId;
+
+    try {
+        const { data: room, error } = await supabaseClient
+            .from("rooms")
+            .select("*")
+            .eq("id", roomId)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!room) {
+            throw new Error("再戦ルームが見つかりません。");
+        }
+
+        displayOnlineRoom(room);
+        applyOnlineRoomState(room);
+
+        await subscribeToOnlineRoom(room);
+
+        setRoomMessage("再戦を開始しました！");
+
+    } catch (error) {
+        console.error("Rematch switch error:", error);
+
+        setRoomMessage(
+            "再戦ルームへの移動に失敗しました：" + error.message
+        );
+
+    } finally {
+        rematchSwitchingRoomId = null;
+    }
+}
+
+async function requestOnlineRematch() {
+    if (
+        !activeOnlineRoom ||
+        activeOnlineRoom.status !== "finished"
+    ) {
+        setRoomMessage("再戦できる対局がありません。");
+        return;
+    }
+
+    const roomId = activeOnlineRoom.id;
+
+    const button =
+        document.getElementById("rematch-room-button");
+
+    button.disabled = true;
+
+    try {
+        setRoomMessage("再戦希望を送信しています...");
+
+        const { data, error } = await supabaseClient.rpc(
+            "request_room_rematch",
+            {
+                p_room_id: roomId
+            }
+        );
+
+        if (error) throw error;
+
+        if (data.status === "waiting") {
+            displayOnlineRoom(data.room);
+
+            setRoomMessage(
+                "再戦希望を送信しました。相手の返答を待っています。"
+            );
+
+        } else if (
+            data.status === "created" &&
+            data.room?.id
+        ) {
+            await switchToRematchRoom(data.room.id);
+
+        } else {
+            throw new Error("予期しない再戦結果です。");
+        }
+
+    } catch (error) {
+        console.error("Rematch request error:", error);
+
+        button.disabled = false;
+
+        setRoomMessage(
+            "再戦エラー：" + error.message
+        );
+    }
+}
+
 document.getElementById("create-room-button")
     .addEventListener("click", createOnlineRoom);
 
@@ -1429,3 +1566,7 @@ document.getElementById("copy-room-code-button")
 document
     .getElementById("leave-room-button")
     .addEventListener("click", leaveOnlineRoom);
+
+document
+    .getElementById("rematch-room-button")
+    .addEventListener("click", requestOnlineRematch);
