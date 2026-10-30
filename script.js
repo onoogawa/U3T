@@ -86,6 +86,7 @@ let isReplayMode = false;
 let replayIndex = null;
 let gameSaved = false;
 let gameSaveInProgress = false;
+let savedGamesLoadId = 0;
 
 function createBoard() {
     boardElement.innerHTML = "";
@@ -604,71 +605,80 @@ document.getElementById("logout-button")
     .addEventListener("click", logoutUser);
 
 async function loadSavedGames() {
+    const loadId = ++savedGamesLoadId;
+
     const message =
         document.getElementById("saved-games-message");
 
     const list =
         document.getElementById("saved-games-list");
 
-    list.innerHTML = "";
+    list.replaceChildren();
     message.textContent = "読み込み中...";
 
-    const { data, error: authError } =
-        await supabaseClient.auth.getUser();
+    try {
+        const { data, error: authError } =
+            await supabaseClient.auth.getUser();
 
-    if (authError || !data.user) {
-        message.textContent = "ログインしてください。";
-        return;
-    }
+        if (loadId !== savedGamesLoadId) return;
 
-    const { data: games, error } = await supabaseClient
-        .from("games")
-        .select("id, created_at, result, move_count, moves")
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-    if (error) {
-        console.error(error);
-        message.textContent =
-            "対局一覧の取得に失敗しました：" + error.message;
-        return;
-    }
-
-    if (!games || games.length === 0) {
-        message.textContent = "保存された対局はありません。";
-        return;
-    }
-
-    message.textContent =
-        `${games.length}件の対局が見つかりました。`;
-
-    games.forEach(game => {
-        const item = document.createElement("li");
-        const button = document.createElement("button");
-
-        const date = new Date(game.created_at)
-            .toLocaleString("ja-JP");
-
-        let resultText = "";
-
-        if (game.result === "X") {
-            resultText = "Xの勝利";
-        } else if (game.result === "O") {
-            resultText = "Oの勝利";
-        } else {
-            resultText = "引き分け";
+        if (authError || !data.user) {
+            message.textContent = "ログインしてください。";
+            return;
         }
 
-        button.textContent =
-            `${date} | ${resultText} | ${game.move_count}手`;
+        const { data: games, error } = await supabaseClient
+            .from("games")
+            .select("id, created_at, result, move_count, moves")
+            .order("created_at", { ascending: false })
+            .limit(50);
 
-        button.addEventListener("click", () => {
-            loadSavedGame(game);
+        if (loadId !== savedGamesLoadId) return;
+
+        if (error) throw error;
+
+        if (!games || games.length === 0) {
+            message.textContent = "保存された対局はありません。";
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        games.forEach(game => {
+            const item = document.createElement("li");
+            const button = document.createElement("button");
+
+            const date = new Date(game.created_at)
+                .toLocaleString("ja-JP");
+
+            const resultText =
+                game.result === "X" ? "Xの勝利" :
+                game.result === "O" ? "Oの勝利" :
+                "引き分け";
+
+            button.textContent =
+                `${date} | ${resultText} | ${game.move_count}手`;
+
+            button.addEventListener("click", () => {
+                loadSavedGame(game);
+            });
+
+            item.appendChild(button);
+            fragment.appendChild(item);
         });
 
-        item.appendChild(button);
-        list.appendChild(item);
-    });
+        list.replaceChildren(fragment);
+
+        message.textContent =
+            `${games.length}件の対局が見つかりました。`;
+
+    } catch (error) {
+        if (loadId !== savedGamesLoadId) return;
+
+        console.error("Saved games loading error:", error);
+        message.textContent =
+            "対局一覧の取得に失敗しました：" + error.message;
+    }
 }
 
 function loadSavedGame(game) {
@@ -698,3 +708,5 @@ function loadSavedGame(game) {
     document.getElementById("saved-games-message").textContent =
         `${new Date(game.created_at).toLocaleString("ja-JP")} の対局を再生中`;
 }
+
+loadSavedGames();
