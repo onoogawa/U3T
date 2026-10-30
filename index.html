@@ -7,52 +7,59 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Ultimate Tic-Tac-Toe</h1>
-    <p id="status">準備中...</p>
+    <header id="page-header">
+        <h1>Ultimate Tic-Tac-Toe</h1>
 
-    <div id="auth-panel">
-        <h2>アカウント</h2>
+        <details id="auth-panel">
+            <summary>アカウント</summary>
 
-        <div id="auth-form">
-            <input
-                type="email"
-                id="auth-email"
-                placeholder="メールアドレス"
-                autocomplete="email"
-            >
+            <div id="auth-content">
 
-            <input
-                type="password"
-                id="auth-password"
-                placeholder="パスワード（6文字以上）"
-                autocomplete="current-password"
-            >
+                <div id="auth-form">
+                <input
+                    type="email"
+                    id="auth-email"
+                    placeholder="メールアドレス"
+                    autocomplete="email"
+                >
 
-            <div id="auth-buttons">
-                <button id="signup-button">新規登録</button>
-                <button id="login-button">ログイン</button>
+                <input
+                    type="password"
+                    id="auth-password"
+                    placeholder="パスワード（6文字以上）"
+                    autocomplete="current-password"
+                >
+
+                <div id="auth-buttons">
+                    <button id="signup-button">新規登録</button>
+                    <button id="login-button">ログイン</button>
+                </div>
             </div>
-        </div>
 
-        <div id="auth-user-panel" hidden>
-            <p id="auth-user-info"></p>
-            <button id="logout-button">ログアウト</button>
-        </div>
+            <div id="auth-user-panel" hidden>
+                <p id="auth-user-info"></p>
+                <button id="logout-button">ログアウト</button>
+            </div>
 
-        <div id="saved-games-panel" hidden>
-            <h3>保存した対局</h3>
+            <div id="saved-games-panel" hidden>
+                <h3>保存した対局</h3>
 
-            <button id="refresh-saved-games-button">
-                対局一覧を更新
-            </button>
+                <button id="refresh-saved-games-button">
+                    対局一覧を更新
+                </button>
 
-            <p id="saved-games-message"></p>
+                <p id="saved-games-message"></p>
 
-            <ol id="saved-games-list"></ol>
-        </div>
+                <ol id="saved-games-list"></ol>
+            </div>
 
-        <p id="auth-message" role="status" aria-live="polite"></p>
-    </div>
+            <p id="auth-message" role="status" aria-live="polite"></p>
+
+                </div>
+        </details>
+    </header>
+
+    <p id="status">準備中...</p>
     
     <div id="game-layout">
         <div id="game-main">
