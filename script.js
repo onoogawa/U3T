@@ -36,6 +36,7 @@ function updateAuthUI(session) {
 }
 
 supabaseClient.auth.onAuthStateChange((event, session) => {
+    currentOnlineUserId = session?.user?.id ?? null;
     updateAuthUI(session);
 
     if (event === "SIGNED_OUT") {
@@ -863,8 +864,27 @@ function applyOnlineRoomState(room) {
             "finished"
         );
     } else {
-        const myMark =
-            room.host_id === currentOnlineUserId ? "O" : "X";
+        let myMark = null;
+
+        if (currentOnlineUserId === room.host_id) {
+            myMark = "O";
+        } else if (currentOnlineUserId === room.guest_id) {
+            myMark = "X";
+        }
+
+        if (myMark === null) {
+            console.error("プレイヤー判定に失敗しました", {
+                currentOnlineUserId,
+                hostId: room.host_id,
+                guestId: room.guest_id
+            });
+
+            setRoomMessage(
+                "ユーザー情報を確認できません。再接続してください。"
+            );
+
+            return;
+        }
 
         const turnText =
             currentPlayer === myMark
