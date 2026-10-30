@@ -700,3 +700,18 @@ body {
         width: 100%;
     }
 }
+
+#room-message {
+    width: min(94vw, 720px);
+    min-height: 24px;
+    margin: 4px auto 16px;
+    padding: 8px 12px;
+
+    border-radius: 6px;
+    background: #f0f0f0;
+    color: #444;
+
+    font-size: 14px;
+    text-align: center;
+    overflow-wrap: anywhere;
+}

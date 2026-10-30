@@ -77,6 +77,9 @@ const boardWinners = Array(9).fill("");
 
 const moveHistory = [];
 
+const onlineSavingRoomIds = new Set();
+const onlineSavedRoomIds = new Set();
+
 let replayMoves = moveHistory;
 
 let currentPlayer = "O";
@@ -332,7 +335,7 @@ function resetGame() {
         );
         return;
     }
-    
+
     for (let i = 0; i < 9; i++) {
         boards[i].fill("");
         boardWinners[i] = "";
@@ -896,11 +899,11 @@ async function submitOnlineMove(boardIndex, cellIndex) {
     displayOnlineRoom(data);
     applyOnlineRoomState(data);
 
-    setRoomMessage(
-        data.status === "finished"
-            ? "対局が終了しました。"
-            : "着手が反映されました。"
-    );
+    if (data.status === "finished") {
+        await saveFinishedOnlineRoom(data.id);
+    } else {
+        setRoomMessage("着手が反映されました。");
+    }
 }
 
 async function subscribeToOnlineRoom(room) {
@@ -941,6 +944,10 @@ async function subscribeToOnlineRoom(room) {
                     updatedRoom.status === "finished"
                 ) {
                     applyOnlineRoomState(updatedRoom);
+                }
+
+                if (updatedRoom.status === "finished") {
+                    saveFinishedOnlineRoom(updatedRoom.id);
                 }
 
                 if (updatedRoom.status === "playing") {
@@ -1081,6 +1088,10 @@ async function refreshOnlineRoom() {
         applyOnlineRoomState(data);
     }
 
+    if (data.status === "finished") {
+        await saveFinishedOnlineRoom(data.id);
+    }
+
     setRoomMessage("ルーム情報を更新しました。");
 }
 
@@ -1097,6 +1108,55 @@ async function copyRoomCode() {
         setRoomMessage(
             "コピーできませんでした。コードを手動でコピーしてください。"
         );
+    }
+}
+
+async function saveFinishedOnlineRoom(roomId) {
+    if (!roomId) return;
+
+    if (
+        onlineSavedRoomIds.has(roomId) ||
+        onlineSavingRoomIds.has(roomId)
+    ) {
+        return;
+    }
+
+    onlineSavingRoomIds.add(roomId);
+
+    try {
+        setRoomMessage("対局結果を保存しています...");
+
+        const { data, error } = await supabaseClient.rpc(
+            "save_finished_room",
+            {
+                p_room_id: roomId
+            }
+        );
+
+        if (error) {
+            throw error;
+        }
+
+        onlineSavedRoomIds.add(roomId);
+
+        console.log("オンライン対局の保存件数:", data);
+
+        await loadSavedGames();
+
+        setRoomMessage(
+            "対局結果と棋譜を保存しました！"
+        );
+
+    } catch (error) {
+        console.error("Online game save error:", error);
+
+        setRoomMessage(
+            "対局は終了しましたが、保存に失敗しました：" +
+            error.message
+        );
+
+    } finally {
+        onlineSavingRoomIds.delete(roomId);
     }
 }
 
