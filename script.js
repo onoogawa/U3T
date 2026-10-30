@@ -1259,6 +1259,59 @@ async function restoreOnlineRoom() {
     }
 }
 
+async function leaveOnlineRoom() {
+    if (!activeOnlineRoom) {
+        setRoomMessage("退出できるルームがありません。");
+        return;
+    }
+
+    if (!window.confirm("このルームから退出しますか？")) {
+        return;
+    }
+
+    const roomId = activeOnlineRoom.id;
+
+    try {
+        setRoomMessage("ルームから退出しています...");
+
+        const { data: room, error } =
+            await supabaseClient.rpc("leave_room", {
+                p_room_id: roomId
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        if (activeRoomChannel) {
+            await supabaseClient.removeChannel(activeRoomChannel);
+            activeRoomChannel = null;
+        }
+
+        activeOnlineRoom = null;
+        localStorage.removeItem("activeOnlineRoomId");
+
+        document.getElementById("active-room-panel").hidden = true;
+        document.getElementById("room-create-area").hidden = false;
+        document.getElementById("room-join-area").hidden = false;
+        document.getElementById("room-status-display").textContent = "";
+
+        if (room.status === "finished") {
+            await saveFinishedOnlineRoom(room.id);
+            applyOnlineRoomState(room);
+        }
+
+        setRoomMessage("ルームから退出しました。");
+
+    } catch (error) {
+        console.error("Room leave error:", error);
+
+        setRoomMessage(
+            "退出エラー：" + error.message
+        );
+    }
+}
+
 async function copyRoomCode() {
     if (!activeOnlineRoom) return;
 
@@ -1335,3 +1388,7 @@ document.getElementById("refresh-room-button")
 
 document.getElementById("copy-room-code-button")
     .addEventListener("click", copyRoomCode);
+
+document
+    .getElementById("leave-room-button")
+    .addEventListener("click", leaveOnlineRoom);
