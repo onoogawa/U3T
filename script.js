@@ -751,7 +751,26 @@ function setRoomMessage(message) {
 }
 
 function displayOnlineRoom(room) {
+
+    if (room.status === "cancelled") {
+        activeOnlineRoom = null;
+
+        localStorage.removeItem("activeOnlineRoomId");
+
+        document.getElementById("active-room-panel").hidden = true;
+
+        document.getElementById("room-create-area").hidden = false;
+        document.getElementById("room-join-area").hidden = false;
+
+        document.getElementById("active-room-code").textContent = "";
+        document.getElementById("room-status-display").textContent =
+            "このルームは解散されています。";
+
+        return;
+    }
+
     activeOnlineRoom = room;
+
     if (
         room.status === "waiting" ||
         room.status === "playing"
@@ -985,6 +1004,14 @@ async function subscribeToOnlineRoom(room) {
                 console.log("ルーム更新を受信:", updatedRoom);
 
                 displayOnlineRoom(updatedRoom);
+
+                if (updatedRoom.status === "cancelled") {
+                    setRoomMessage(
+                        "ホストがルームを解散しました。"
+                    );
+
+                    return;
+                }
 
                 if (
                     updatedRoom.status === "playing" ||
@@ -1225,6 +1252,16 @@ async function restoreOnlineRoom() {
         ) {
             localStorage.removeItem("activeOnlineRoomId");
             setRoomMessage("このルームにはアクセスできません。");
+            return;
+        }
+
+        if (room.status === "cancelled") {
+            displayOnlineRoom(room);
+
+            setRoomMessage(
+                "このルームは解散されています。"
+            );
+
             return;
         }
 
