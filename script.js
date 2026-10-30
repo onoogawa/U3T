@@ -935,6 +935,18 @@ async function subscribeToOnlineRoom(room) {
                     return;
                 }
 
+                const previousStatus = activeOnlineRoom.status;
+
+                const previousMoveCount =
+                Array.isArray(activeOnlineRoom.moves)
+                    ? activeOnlineRoom.moves.length
+                    : 0;
+
+                const updatedMoveCount =
+                Array.isArray(updatedRoom.moves)
+                    ? updatedRoom.moves.length
+                    : 0;
+
                 console.log("ルーム更新を受信:", updatedRoom);
 
                 displayOnlineRoom(updatedRoom);
@@ -947,17 +959,22 @@ async function subscribeToOnlineRoom(room) {
                 }
 
                 if (updatedRoom.status === "finished") {
+                    setRoomMessage("対局が終了しました。");
                     saveFinishedOnlineRoom(updatedRoom.id);
                 }
-
-                if (updatedRoom.status === "playing") {
+                else if (
+                    previousStatus === "waiting" &&
+                    updatedRoom.status === "playing"
+                ) {
                     setRoomMessage(
-                        "相手が参加しました！対局を開始できます。"
+                    "相手が参加しました！対局を開始できます。"
                     );
-                } else if (updatedRoom.status === "waiting") {
-                    setRoomMessage(
-                        "相手の参加を待っています。"
-                    );
+                }
+                else if (
+                    updatedRoom.status === "playing" &&
+                    updatedMoveCount > previousMoveCount
+                ) {
+                    setRoomMessage("新しい着手を受信しました。");
                 }
             }
         )
