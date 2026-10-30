@@ -698,5 +698,3 @@ function loadSavedGame(game) {
     document.getElementById("saved-games-message").textContent =
         `${new Date(game.created_at).toLocaleString("ja-JP")} の対局を再生中`;
 }
-
-document.getElementById("refresh-saved-games-button").addEventListener("click", loadSavedGames);
