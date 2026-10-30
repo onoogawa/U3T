@@ -462,3 +462,53 @@ body {
     text-align: center;
     overflow-wrap: anywhere;
 }
+
+/* 保存済み対局 */
+#saved-games-panel {
+    margin-top: 20px;
+    border-top: 1px solid #ddd;
+    padding-top: 15px;
+}
+
+#saved-games-panel h3 {
+    font-size: 17px;
+    margin-bottom: 12px;
+}
+
+#refresh-saved-games-button {
+    width: 100%;
+    padding: 9px;
+    border: none;
+    border-radius: 6px;
+    background: #444;
+    color: white;
+    cursor: pointer;
+}
+
+#saved-games-list {
+    padding-left: 24px;
+}
+
+#saved-games-list li {
+    padding: 7px 0;
+    border-bottom: 1px solid #eee;
+}
+
+#saved-games-list button {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    text-align: left;
+    cursor: pointer;
+}
+
+#saved-games-list button:hover {
+    background: #eee;
+}
+
+#saved-games-message {
+    font-size: 13px;
+    color: #666;
+}

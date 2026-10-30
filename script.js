@@ -25,9 +25,13 @@ function updateAuthUI(session) {
 
         authUserInfo.textContent =
             `ログイン中：${session.user.email}`;
+        
+        document.getElementById("saved-games-panel").hidden = false;
     } else {
         authForm.hidden = false;
         authUserPanel.hidden = true;
+        document.getElementById("saved-games-panel").hidden = true;
+        document.getElementById("saved-games-list").innerHTML = "";
     }
 }
 
@@ -36,6 +40,15 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
 
     if (event === "SIGNED_OUT") {
         setAuthMessage("ログアウトしました。");
+    }
+
+    if (
+        session &&
+        (event === "SIGNED_IN" || event === "INITIAL_SESSION")
+    ) {
+        window.setTimeout(() => {
+            loadSavedGames();
+        }, 0);
     }
 });
 
@@ -64,11 +77,15 @@ const boardWinners = Array(9).fill("");
 
 const moveHistory = [];
 
+let replayMoves = moveHistory;
+
 let currentPlayer = "O";
 let nextBoard = null;
 let gameOver = false;
 let isReplayMode = false;
 let replayIndex = null;
+let gameSaved = false;
+let gameSaveInProgress = false;
 
 function createBoard() {
     boardElement.innerHTML = "";
@@ -138,10 +155,14 @@ function handleClick(boardIndex, cellIndex, cell) {
     if (bigWinner !== "") {
         gameOver = true;
         nextBoard = null;
-        updateBoardStyles();
+
+        saveCurrentMoveState();
+
+        saveGameResult(bigWinner);
 
         updateBoardStyles();
-        setStatus(`${bigWinner}の勝利！`, "finished");
+
+        statusElement.textContent = `${bigWinner}の勝利！`;
         return;
     }
 
@@ -158,10 +179,14 @@ function handleClick(boardIndex, cellIndex, cell) {
     if (allBoardsFinished) {
         gameOver = true;
         nextBoard = null;
+
         saveCurrentMoveState();
+
+        saveGameResult("draw");
+
         updateBoardStyles();
 
-        setStatus("引き分け！", "finished");
+        statusElement.textContent = `引き分け！`;
         return;
     }
 
@@ -197,6 +222,61 @@ function saveCurrentMoveState() {
     move.nextBoard = nextBoard;
     move.nextPlayer = currentPlayer;
     move.gameOver = gameOver;
+}
+
+async function saveGameResult(result) {
+    if (gameSaved || gameSaveInProgress) return;
+
+    gameSaveInProgress = true;
+    setAuthMessage("対局記録を保存しています...");
+
+    try {
+        const { data, error: authError } =
+            await supabaseClient.auth.getUser();
+
+        if (authError) throw authError;
+
+        const user = data.user;
+
+        if (!user) {
+            setAuthMessage(
+                "対局は終了しました。保存するにはログインしてください。"
+            );
+            return;
+        }
+
+        const movesToSave = moveHistory.map(move => ({
+            player: move.player,
+            board: move.board,
+            cell: move.cell,
+            position: move.position,
+            boardWinners: move.boardWinners,
+            nextBoard: move.nextBoard,
+            nextPlayer: move.nextPlayer,
+            gameOver: move.gameOver
+        }));
+
+        const { error } = await supabaseClient
+            .from("games")
+            .insert({
+                user_id: user.id,
+                result: result,
+                move_count: movesToSave.length,
+                moves: movesToSave
+            });
+
+        if (error) throw error;
+
+        gameSaved = true;
+        setAuthMessage("対局結果と棋譜を保存しました！");
+
+    } catch (error) {
+        console.error("Game save error:", error);
+        setAuthMessage("保存エラー：" + error.message);
+
+    } finally {
+        gameSaveInProgress = false;
+    }
 }
 
 function checkWinner(cells) {
@@ -241,9 +321,12 @@ function resetGame() {
     nextBoard = null;
     gameOver = false;
     moveHistory.length = 0;
+    gameSaved = false;
+    gameSaveInProgress = false;
 
     isReplayMode = false;
     replayIndex = null;
+    replayMoves = moveHistory;
     document.getElementById("return-to-game-button").hidden = true;
 
     createBoard();
@@ -296,13 +379,13 @@ function displayPosition(position, state = null) {
 }
 
 function showReplayPosition(moveIndex) {
-    if (moveIndex < -1 || moveIndex >= moveHistory.length) {
+    if (moveIndex < -1 || moveIndex >= replayMoves.length) {
         return;
     }
 
     if (
         moveIndex >= 0 &&
-        !moveHistory[moveIndex].position
+        !replayMoves[moveIndex].position
     ) {
         return;
     }
@@ -317,7 +400,7 @@ function showReplayPosition(moveIndex) {
         });
         setStatus("対局開始時点を再生中", "replay");
     } else {
-        const move = moveHistory[moveIndex];
+        const move = replayMoves[moveIndex];
 
         displayPosition(move.position, move);
 
@@ -341,7 +424,7 @@ function updateReplayControls() {
         !isReplayMode || replayIndex <= -1;
 
     nextButton.disabled =
-        !isReplayMode || replayIndex >= moveHistory.length - 1;
+        !isReplayMode || replayIndex >= replayMoves.length - 1;
 }
 
 function showPreviousMove() {
@@ -353,7 +436,7 @@ function showPreviousMove() {
 function showNextMove() {
     if (!isReplayMode) return;
 
-    if (replayIndex < moveHistory.length - 1) {
+    if (replayIndex < replayMoves.length - 1) {
         showReplayPosition(replayIndex + 1);
     }
 }
@@ -365,7 +448,7 @@ function renderMoveHistory() {
 
     let selectedItem = null;
 
-    moveHistory.forEach((move, index) => {
+    replayMoves.forEach((move, index) => {
         const item = document.createElement("li");
 
         item.textContent =
@@ -400,6 +483,7 @@ function renderMoveHistory() {
 function returnToGame() {
     isReplayMode = false;
     replayIndex = null;
+    replayMoves = moveHistory;
     renderMoveHistory();
 
     displayPosition(boards);
@@ -518,3 +602,101 @@ document.getElementById("login-button")
 
 document.getElementById("logout-button")
     .addEventListener("click", logoutUser);
+
+async function loadSavedGames() {
+    const message =
+        document.getElementById("saved-games-message");
+
+    const list =
+        document.getElementById("saved-games-list");
+
+    list.innerHTML = "";
+    message.textContent = "読み込み中...";
+
+    const { data, error: authError } =
+        await supabaseClient.auth.getUser();
+
+    if (authError || !data.user) {
+        message.textContent = "ログインしてください。";
+        return;
+    }
+
+    const { data: games, error } = await supabaseClient
+        .from("games")
+        .select("id, created_at, result, move_count, moves")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+    if (error) {
+        console.error(error);
+        message.textContent =
+            "対局一覧の取得に失敗しました：" + error.message;
+        return;
+    }
+
+    if (!games || games.length === 0) {
+        message.textContent = "保存された対局はありません。";
+        return;
+    }
+
+    message.textContent =
+        `${games.length}件の対局が見つかりました。`;
+
+    games.forEach(game => {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+
+        const date = new Date(game.created_at)
+            .toLocaleString("ja-JP");
+
+        let resultText = "";
+
+        if (game.result === "X") {
+            resultText = "Xの勝利";
+        } else if (game.result === "O") {
+            resultText = "Oの勝利";
+        } else {
+            resultText = "引き分け";
+        }
+
+        button.textContent =
+            `${date} | ${resultText} | ${game.move_count}手`;
+
+        button.addEventListener("click", () => {
+            loadSavedGame(game);
+        });
+
+        item.appendChild(button);
+        list.appendChild(item);
+    });
+}
+
+function loadSavedGame(game) {
+    if (!Array.isArray(game.moves) || game.moves.length === 0) {
+        alert("この対局には棋譜がありません。");
+        return;
+    }
+
+    const validMoves = game.moves.every(move =>
+        move &&
+        Array.isArray(move.position) &&
+        move.position.length === 9 &&
+        move.position.every(board =>
+            Array.isArray(board) && board.length === 9
+        )
+    );
+
+    if (!validMoves) {
+        alert("この対局の棋譜データが不完全です。");
+        return;
+    }
+
+    replayMoves = game.moves;
+
+    showReplayPosition(replayMoves.length - 1);
+
+    document.getElementById("saved-games-message").textContent =
+        `${new Date(game.created_at).toLocaleString("ja-JP")} の対局を再生中`;
+}
+
+document.getElementById("refresh-saved-games-button").addEventListener("click", loadSavedGames);
