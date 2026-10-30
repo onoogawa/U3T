@@ -1,7 +1,6 @@
 const boardElement = document.getElementById("board");
 const statusElement = document.getElementById("status");
 
-// Supabase接続情報
 const SUPABASE_URL = "https://muxbidgynhfqravewhsv.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SdvlZPT451wbewu5J9zs8w_Aze-AkJ5";
 
@@ -441,7 +440,6 @@ document.getElementById("previous-move-button").addEventListener("click", showPr
 document.getElementById("next-move-button").addEventListener("click", showNextMove);
 document.getElementById("return-to-game-button").addEventListener("click", returnToGame);
 
-// 新規登録
 async function signUpUser() {
     const email = document.getElementById("auth-email").value.trim();
     const password = document.getElementById("auth-password").value;
