@@ -1003,7 +1003,7 @@ async function subscribeToOnlineRoom(room) {
                 table: "rooms",
                 filter: `id=eq.${roomId}`
             },
-            (payload) => {
+            async (payload) => {
                 const updatedRoom = payload.new;
                 if (
                     activeOnlineRoom &&
