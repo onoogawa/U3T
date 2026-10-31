@@ -289,6 +289,7 @@ async function saveGameResult(result) {
         if (error) throw error;
 
         gameSaved = true;
+        await loadSavedGames();
         setAuthMessage("対局結果と棋譜を保存しました！");
 
     } catch (error) {
