@@ -1554,6 +1554,10 @@ async function requestOnlineRematch() {
 document.getElementById("create-room-button")
     .addEventListener("click", createOnlineRoom);
 
+document
+    .getElementById("refresh-saved-games-button")
+    .addEventListener("click", loadSavedGames);
+
 document.getElementById("join-room-button")
     .addEventListener("click", joinOnlineRoom);
 
