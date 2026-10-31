@@ -290,7 +290,7 @@ async function saveGameResult(result) {
 
         gameSaved = true;
         await loadSavedGames();
-        setAuthMessage("対局結果と棋譜を保存しました！");
+        setSaveMessage("対局結果と棋譜を保存しました！");
 
     } catch (error) {
         console.error("Game save error:", error);
@@ -750,6 +750,10 @@ loadSavedGames();
 
 function setRoomMessage(message) {
     document.getElementById("room-message").textContent = message;
+}
+
+function setSaveMessage(message) {
+    document.getElementById("save-message").textContent = message;
 }
 
 function displayOnlineRoom(room) {
@@ -1414,7 +1418,7 @@ async function saveFinishedOnlineRoom(roomId) {
     onlineSavingRoomIds.add(roomId);
 
     try {
-        setRoomMessage("対局結果を保存しています...");
+        setSaveMessage("対局結果を保存しています...");
 
         const { data, error } = await supabaseClient.rpc(
             "save_finished_room",
@@ -1433,14 +1437,12 @@ async function saveFinishedOnlineRoom(roomId) {
 
         await loadSavedGames();
 
-        setRoomMessage(
-            "対局結果と棋譜を保存しました！"
-        );
+        setSaveMessage("対局結果と棋譜を保存しました！");
 
     } catch (error) {
         console.error("Online game save error:", error);
 
-        setRoomMessage(
+        setSaveMessage(
             "対局は終了しましたが、保存に失敗しました：" +
             error.message
         );
